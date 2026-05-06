@@ -38,3 +38,14 @@ yarn-error.log*
 
 # secrets
 service-account.json
+
+# env and local tooling artifacts
+.env
+.env.*
+!.env.example
+.claude/
+scripts/eval-output/
+*.log
+add_asset_createdat.js
+check_cols.js
+verify_cols.js
