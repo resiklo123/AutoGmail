@@ -18,25 +18,30 @@ enum PostStatus {
 }
 
 model Post {
-  id            String     @id @default(cuid())
-  slug          String     @unique
-  machine       String
-  machineFamily String
-  machineModel  String?
-  topic         String
-  location      String?
-  platforms     String[]
-  status        PostStatus @default(PROCESSING)
-  createdAt     DateTime   @default(now())
-  assets        Asset[]
-  drafts        Draft[]
-  logs          PostingLog[]
+  id                   String     @id @default(cuid())
+  slug                 String     @unique
+  machine              String
+  machineFamily        String
+  machineModel         String?
+  topic                String
+  location             String?
+  platforms            String[]
+  status               PostStatus @default(PROCESSING)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @default(now()) @updatedAt
+  libraryFolderId      String?
+  libraryFolderUrl     String?
+  byDateShortcutUrl    String?
+  byMachineShortcutUrl String?
+  assets               Asset[]
+  drafts               Draft[]
+  logs                 PostingLog[]
 }
 
 model Asset {
-  id            String  @id @default(cuid())
+  id            String   @id @default(cuid())
   postId        String
-  post          Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   driveFileId   String
   originalName  String
   finalName     String
@@ -44,6 +49,7 @@ model Asset {
   size          BigInt?
   webViewLink   String?
   thumbnailLink String?
+  createdAt     DateTime @default(now())
 }
 
 model Draft {
