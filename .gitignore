@@ -49,3 +49,7 @@ scripts/eval-output/
 add_asset_createdat.js
 check_cols.js
 verify_cols.js
+
+# Local backup/export zips
+Marketing_*.zip
+*.zip

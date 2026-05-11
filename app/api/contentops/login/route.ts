@@ -9,7 +9,7 @@ const Body = z.object({
 
 export async function POST(request: Request) {
   if (!process.env.CONTENTOPS_PASSCODE) {
-    return NextResponse.json({ error: "CONTENTOPS_PASSCODE not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
   let json: unknown;
   try {

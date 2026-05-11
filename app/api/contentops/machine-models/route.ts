@@ -6,12 +6,6 @@ import { prisma } from "@/lib/prisma";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
-function developmentErrorMessage(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  if (message.startsWith("DB_URL_INVALID:")) return message;
-  return message;
-}
-
 export async function GET(request: Request) {
   try {
     await assertContentOpsRequest(request);
@@ -20,11 +14,7 @@ export async function GET(request: Request) {
     if (code === 401) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
-    const body: { ok: false; error: "server_error"; message?: string } = { ok: false, error: "server_error" };
-    if (process.env.NODE_ENV === "development") {
-      body.message = developmentErrorMessage(e);
-    }
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 
   const url = new URL(request.url);
@@ -68,10 +58,6 @@ export async function GET(request: Request) {
     );
   } catch (err) {
     console.error("[contentops] GET /machine-models failed:", err);
-    const body: { ok: false; error: "server_error"; message?: string } = { ok: false, error: "server_error" };
-    if (process.env.NODE_ENV === "development") {
-      body.message = developmentErrorMessage(err);
-    }
-    return NextResponse.json(body, { status: 500 });
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
 }

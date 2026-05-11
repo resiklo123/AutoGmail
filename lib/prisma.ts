@@ -6,17 +6,13 @@ const VALID_PRISMA_URL_PREFIXES = ["postgres://", "postgresql://", "prisma://", 
 
 type PrismaUrlEnvName = "CONTENTOPS_PRISMA_DATABASE_URL" | "DATABASE_URL";
 
-function redactedPrefix(value: string | undefined): string {
-  return (value ?? "").trim().slice(0, 12);
-}
-
 function isValidPrismaUrl(value: string | undefined): value is string {
   const trimmed = value?.trim();
   return !!trimmed && VALID_PRISMA_URL_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
 }
 
-export function prismaUrlInvalidMessage(envName: PrismaUrlEnvName, value: string | undefined): string {
-  return `DB_URL_INVALID: using ${envName} prefix=${redactedPrefix(value)}`;
+export function prismaUrlInvalidMessage(envName: PrismaUrlEnvName): string {
+  return `DB_URL_INVALID: ${envName} is missing or invalid`;
 }
 
 function prismaRuntimeUrl(): string {
@@ -24,7 +20,7 @@ function prismaRuntimeUrl(): string {
   if (override && isValidPrismaUrl(override)) return override;
   const url = process.env.DATABASE_URL?.trim();
   if (!isValidPrismaUrl(url)) {
-    throw new Error(prismaUrlInvalidMessage("DATABASE_URL", url));
+    throw new Error(prismaUrlInvalidMessage("DATABASE_URL"));
   }
   return url;
 }

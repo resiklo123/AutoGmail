@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   } catch (e) {
     const code = (e as Error & { statusCode?: number }).statusCode;
     if (code === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
 
   let json: unknown;
@@ -55,6 +55,6 @@ export async function POST(request: Request) {
           : { ok: false as const, error: "schema_drift" as const, code: "P2022" as const };
       return NextResponse.json(body, { status: 500 });
     }
-    return NextResponse.json({ error: (e as Error).message ?? "Processing failed" }, { status: 502 });
+    return NextResponse.json({ error: "Processing failed" }, { status: 502 });
   }
 }

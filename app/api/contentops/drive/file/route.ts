@@ -6,7 +6,7 @@ import { getDriveClient } from "@/lib/google-drive";
 function authErrorResponse(e: unknown): NextResponse {
   const code = (e as Error & { statusCode?: number }).statusCode;
   if (code === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
 }
 
 export async function GET(request: Request) {
@@ -58,6 +58,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: `Drive preview failed: ${(e as Error).message}` }, { status: 502 });
+    console.error("[contentops] GET /drive/file failed:", e);
+    return NextResponse.json({ error: "Processing failed" }, { status: 502 });
   }
 }

@@ -11,7 +11,7 @@ export async function GET(request: Request, context: Ctx) {
   } catch (e) {
     const code = (e as Error & { statusCode?: number }).statusCode;
     if (code === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
   }
   const { postId } = await context.params;
   const post = await prisma.post.findUnique({
