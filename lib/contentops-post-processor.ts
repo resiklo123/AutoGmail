@@ -138,6 +138,9 @@ export async function processNewContentOpsPost(input: {
 
   try {
     if (testMode) {
+      console.log(
+        "[contentops] TEST_MODE=true; skipping Drive folder/shortcut creation, folder URL fields will be blank",
+      );
       await prisma.asset.createMany({
         data: input.driveFileIds.map((driveFileId, i) => ({
           postId: post.id,
@@ -199,6 +202,10 @@ export async function processNewContentOpsPost(input: {
     const byMachineId = await ensureByMachineFolder(normalizedFamily, normalizedModel);
     const byDateId = await ensureByDateFolder(year, month);
 
+    console.log(
+      `[contentops] Drive folders created for post ${post.id}: libraryFolderId=${canonicalFolderId}, byDateId=${byDateId}, byMachineId=${byMachineId}`,
+    );
+
     for (let i = 0; i < moved.length; i++) {
       const item = moved[i]!;
       const ext = path.extname(item.finalName) || path.extname(item.meta.name) || "";
@@ -218,7 +225,7 @@ export async function processNewContentOpsPost(input: {
     const draftRows = draftCreatesFromJson(post.id, input.platforms, draftsJson);
     if (draftRows.length) await prisma.draft.createMany({ data: draftRows });
 
-    await prisma.post.update({
+    const updatedPost = await prisma.post.update({
       where: { id: post.id },
       data: {
         status: STATUS_DRAFT_READY,
@@ -227,6 +234,13 @@ export async function processNewContentOpsPost(input: {
         byDateShortcutUrl: `https://drive.google.com/drive/folders/${byDateId}`,
         byMachineShortcutUrl: `https://drive.google.com/drive/folders/${byMachineId}`,
       },
+    });
+    console.log("[contentops] Post folder fields saved", {
+      postId: updatedPost.id,
+      libraryFolderId: updatedPost.libraryFolderId,
+      hasLibraryFolderUrl: !!updatedPost.libraryFolderUrl,
+      hasByDateShortcutUrl: !!updatedPost.byDateShortcutUrl,
+      hasByMachineShortcutUrl: !!updatedPost.byMachineShortcutUrl,
     });
     let sheetSyncFailed = false;
     try {

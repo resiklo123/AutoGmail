@@ -117,6 +117,31 @@ function getMasterSheetId(): string | null {
   return sheetId;
 }
 
+/** Last 6 chars of spreadsheet id for logs only (never log full id). */
+function safeSheetIdSuffix(spreadsheetId: string): string {
+  const t = spreadsheetId.trim();
+  if (t.length <= 6) return `...${t}`;
+  return `...${t.slice(-6)}`;
+}
+
+function logBlankFolderFieldsForPost(post: {
+  id: string;
+  libraryFolderId: string | null;
+  libraryFolderUrl: string | null;
+  byDateShortcutUrl: string | null;
+  byMachineShortcutUrl: string | null;
+}): void {
+  const hasLibId = !!(post.libraryFolderId && String(post.libraryFolderId).trim());
+  const hasLibUrl = !!(post.libraryFolderUrl && post.libraryFolderUrl.trim());
+  const hasByDate = !!(post.byDateShortcutUrl && post.byDateShortcutUrl.trim());
+  const hasByMachine = !!(post.byMachineShortcutUrl && post.byMachineShortcutUrl.trim());
+  if (hasLibId && hasLibUrl && hasByDate && hasByMachine) return;
+  const testMode = process.env.CONTENTOPS_TEST_MODE === "true";
+  console.log(
+    `[contentops] Sheet sync: folder fields blank for post ${post.id}; testMode=${testMode}; libraryFolderId=${hasLibId ? "present" : "empty"}`,
+  );
+}
+
 function getSheetsClient(): sheets_v4.Sheets {
   const credentials = parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   const auth = new google.auth.GoogleAuth({
@@ -421,6 +446,10 @@ export async function upsertPostingLogRow(postId: string): Promise<void> {
   const spreadsheetId = getMasterSheetId();
   if (!spreadsheetId) return;
 
+  console.log(
+    `[contentops] Sheets mirror target configured: CONTENTOPS_MASTER_SHEET_ID ending ${safeSheetIdSuffix(spreadsheetId)}`,
+  );
+
   const sheets = getSheetsClient();
   await ensurePostingLogTabAndHeaders(sheets, spreadsheetId);
 
@@ -446,6 +475,8 @@ export async function upsertPostingLogRow(postId: string): Promise<void> {
     },
   });
   if (!post) return;
+
+  logBlankFolderFieldsForPost(post);
 
   const sheetRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -621,6 +652,8 @@ export async function upsertPostsRow(postId: string): Promise<void> {
     },
   });
   if (!post) return;
+
+  logBlankFolderFieldsForPost(post);
 
   let headerRes = await sheets.spreadsheets.values.get({
     spreadsheetId,
@@ -856,6 +889,8 @@ export async function upsertAssetsRows(postId: string): Promise<void> {
     },
   });
   if (!post) return;
+
+  logBlankFolderFieldsForPost(post);
 
   let headerRes = await sheets.spreadsheets.values.get({
     spreadsheetId,

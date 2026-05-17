@@ -5,6 +5,8 @@ import { useTransition } from "react";
 
 const ITEMS = [
   { label: "Inbox", href: "/admin/contentops" },
+  { label: "Upload", href: "/admin/contentops/upload" },
+  { label: "Batches", href: "/admin/contentops/batches" },
   { label: "New post", href: "/admin/contentops/new" },
   { label: "Marketing site", href: "/" },
 ] as const;

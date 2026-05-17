@@ -1,4 +1,5 @@
 import { google, drive_v3 } from "googleapis";
+import { Readable } from "node:stream";
 
 export type IncomingDriveFile = {
   id: string;
@@ -207,5 +208,76 @@ export async function getFileMetadata(fileId: string): Promise<IncomingDriveFile
     createdTime: f.createdTime,
     webViewLink: f.webViewLink,
     thumbnailLink: f.thumbnailLink,
+  };
+}
+
+/** Incoming uploads root from env; throws a clear configuration error if missing. */
+export function requireIncomingDriveFolderId(): string {
+  const id = process.env.DRIVE_INCOMING_FOLDER_ID?.trim();
+  if (!id) {
+    throw new Error("DRIVE_INCOMING_FOLDER_ID is not set; configure it to enable incoming uploads.");
+  }
+  return id;
+}
+
+/**
+ * Ensures YYYY/MM/DD/<batchCode>/ under DRIVE_INCOMING_FOLDER_ID (that env id is already the Incoming root).
+ * Folder segment names are sanitized.
+ */
+export async function ensureIncomingBatchFolderPath(params: {
+  uploadedAt: Date;
+  batchCode: string;
+}): Promise<{ folderId: string; folderUrl: string; pathLabel: string }> {
+  const root = requireIncomingDriveFolderId();
+  const drive = getDriveClient();
+  const y = String(params.uploadedAt.getUTCFullYear());
+  const mo = String(params.uploadedAt.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(params.uploadedAt.getUTCDate()).padStart(2, "0");
+  const yearId = await findOrCreateFolder(drive, y, root);
+  const monthId = await findOrCreateFolder(drive, mo, yearId);
+  const dayId = await findOrCreateFolder(drive, day, monthId);
+  const batchFolderName = sanitizePathSegment(params.batchCode);
+  const batchId = await findOrCreateFolder(drive, batchFolderName, dayId);
+  const pathLabel = `${y}/${mo}/${day}/${batchFolderName}`;
+  return { folderId: batchId, folderUrl: `https://drive.google.com/drive/folders/${batchId}`, pathLabel };
+}
+
+export async function uploadBufferToDriveFolder(params: {
+  parentFolderId: string;
+  /** Drive file name (sanitized again before upload). */
+  storedFileName: string;
+  mimeType: string;
+  body: Buffer;
+}): Promise<{
+  id: string;
+  name: string;
+  mimeType: string;
+  size: string | null;
+  webViewLink: string | null;
+  thumbnailLink: string | null;
+}> {
+  const drive = getDriveClient();
+  const safeName = sanitizePathSegment(params.storedFileName).replace(/\s+/g, "_").slice(0, 200) || "upload.bin";
+  const created = await drive.files.create({
+    requestBody: {
+      name: safeName,
+      parents: [params.parentFolderId],
+    },
+    media: {
+      mimeType: params.mimeType || "application/octet-stream",
+      body: Readable.from(params.body),
+    },
+    fields: "id,name,mimeType,size,webViewLink,thumbnailLink",
+    supportsAllDrives: true,
+  });
+  const f = created.data;
+  if (!f.id) throw new Error("Drive upload did not return a file id");
+  return {
+    id: f.id,
+    name: f.name ?? safeName,
+    mimeType: f.mimeType ?? params.mimeType,
+    size: f.size ?? null,
+    webViewLink: f.webViewLink ?? null,
+    thumbnailLink: f.thumbnailLink ?? null,
   };
 }

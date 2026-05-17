@@ -89,3 +89,41 @@ model MachineModelOption {
 
   @@unique([family, model])
 }
+
+model UploadBatch {
+  id              String          @id @default(cuid())
+  batchCode       String          @unique
+  uploadedAt      DateTime        @default(now())
+  uploadedBy      String?
+  machineFamily   String          @default("Unknown")
+  machineModel    String          @default("Unknown")
+  topic           String          @default("Uncategorized")
+  location        String          @default("Unknown")
+  metadataSource  String          @default("DEFAULT")
+  reviewStatus    String          @default("NEEDS_REVIEW")
+  aiConfidence    Float?
+  fileCount       Int             @default(0)
+  driveFolderId   String?
+  driveFolderUrl  String?
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  assets          IncomingAsset[]
+}
+
+model IncomingAsset {
+  id            String      @id @default(cuid())
+  batchId       String
+  batch         UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  driveFileId   String
+  originalName  String
+  storedName    String
+  mimeType      String?
+  sizeBytes     BigInt?
+  webViewLink   String?
+  thumbnailLink String?
+  uploadStatus  String      @default("UPLOADED")
+  errorMessage  String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}

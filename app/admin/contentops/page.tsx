@@ -84,6 +84,10 @@ export default function ContentOpsInboxPage() {
         Files listed here are already in Drive ? nothing is uploaded through Vercel. Select them when creating a{" "}
         <Link href="/admin/contentops/new">new post</Link>.
       </p>
+      <p className="co-row" style={{ gap: "1rem", flexWrap: "wrap", margin: 0 }}>
+        <Link href="/admin/contentops/upload">Upload batch</Link>
+        <Link href="/admin/contentops/batches">View batches</Link>
+      </p>
 
       {error ? <p style={{ color: "var(--danger)" }}>{error}</p> : null}
 

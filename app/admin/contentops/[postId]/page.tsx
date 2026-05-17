@@ -35,6 +35,9 @@ type PostDetail = {
   platforms: string[];
   status: string;
   createdAt: string;
+  libraryFolderUrl?: string | null;
+  byDateShortcutUrl?: string | null;
+  byMachineShortcutUrl?: string | null;
   assets: Asset[];
   drafts: Draft[];
 };
@@ -59,6 +62,27 @@ type SavePostingLogResponse = {
   error?: string;
 };
 
+type PostingLogUrlIssue = { platform: string; field: string; message: string };
+
+/** Client-side convenience: prepend https:// when no scheme (does not validate). */
+function normalizePostedUrlForDisplay(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  if (/^https?:\/\//i.test(t)) return t;
+  return `https://${t}`;
+}
+
+function normalizeAllLogEntryUrls(entries: Record<string, PostingLogEntry>): Record<string, PostingLogEntry> {
+  const next: Record<string, PostingLogEntry> = { ...entries };
+  for (const p of PLATFORM_OPTIONS) {
+    const url = next[p.id]?.postedUrl;
+    if (url == null || typeof url !== "string") continue;
+    const normalized = normalizePostedUrlForDisplay(url);
+    next[p.id] = { ...next[p.id], postedUrl: normalized || null };
+  }
+  return next;
+}
+
 function extLabel(name: string): string {
   const parts = name.split(".");
   if (parts.length < 2) return "FILE";
@@ -72,6 +96,7 @@ export default function ContentOpsPostDetailPage() {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [logEntries, setLogEntries] = useState<Record<string, PostingLogEntry>>({});
   const [error, setError] = useState<string | null>(null);
+  const [postingLogError, setPostingLogError] = useState<string | null>(null);
   const [sheetSyncWarning, setSheetSyncWarning] = useState(false);
   const [statusChoice, setStatusChoice] = useState<string>("DRAFT");
   const [busy, setBusy] = useState(false);
@@ -160,6 +185,25 @@ export default function ContentOpsPostDetailPage() {
         Status: <strong>{post.status}</strong> ・ <strong>{postingBadge}</strong>
       </p>
       {sheetSyncWarning ? <p style={{ color: "var(--danger)", fontWeight: 600 }}>Saved in DB, Sheet sync failed</p> : null}
+      {(post.libraryFolderUrl?.trim() || post.byDateShortcutUrl?.trim() || post.byMachineShortcutUrl?.trim()) ? (
+        <p className="co-row" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+          {post.libraryFolderUrl?.trim() ? (
+            <a href={post.libraryFolderUrl.trim()} target="_blank" rel="noreferrer">
+              Library folder
+            </a>
+          ) : null}
+          {post.byDateShortcutUrl?.trim() ? (
+            <a href={post.byDateShortcutUrl.trim()} target="_blank" rel="noreferrer">
+              By date folder
+            </a>
+          ) : null}
+          {post.byMachineShortcutUrl?.trim() ? (
+            <a href={post.byMachineShortcutUrl.trim()} target="_blank" rel="noreferrer">
+              By machine folder
+            </a>
+          ) : null}
+        </p>
+      ) : null}
 
       <section className="co-panel co-stack">
         <h2 style={{ marginTop: 0 }}>Update status</h2>
@@ -209,6 +253,11 @@ export default function ContentOpsPostDetailPage() {
 
       <section className="co-panel co-stack">
         <h2 style={{ marginTop: 0 }}>Posting Log</h2>
+        {postingLogError ? (
+          <p style={{ color: "var(--danger)", fontWeight: 600 }} role="alert">
+            {postingLogError}
+          </p>
+        ) : null}
         {PLATFORM_OPTIONS.map((platform) => {
           const entry = logEntries[platform.id] ?? {};
           const selected = selectedPlatformIds.includes(platform.id);
@@ -228,6 +277,14 @@ export default function ContentOpsPostDetailPage() {
                     [platform.id]: { ...prev[platform.id], postedUrl: e.target.value },
                   }))
                 }
+                onBlur={() => {
+                  const raw = entry.postedUrl ?? "";
+                  const normalized = normalizePostedUrlForDisplay(raw);
+                  setLogEntries((prev) => ({
+                    ...prev,
+                    [platform.id]: { ...prev[platform.id], postedUrl: normalized || null },
+                  }));
+                }}
               />
               <div className="co-row">
                 <input
@@ -280,19 +337,28 @@ export default function ContentOpsPostDetailPage() {
           disabled={savingLog}
           onClick={async () => {
             setSavingLog(true);
+            setPostingLogError(null);
             try {
+              const entriesToSave = normalizeAllLogEntryUrls(logEntries);
               const res = await fetch(`/api/contentops/posts/${postId}/posting-log`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ entries: logEntries }),
+                body: JSON.stringify({ entries: entriesToSave }),
               });
               const payload = await res.json();
               if (!res.ok) {
-                setError((payload as { error?: string }).error ?? "Failed to save posting log");
+                const errBody = payload as { error?: string; issues?: PostingLogUrlIssue[] };
+                if (errBody.error === "Invalid posting log URL" && errBody.issues?.length) {
+                  const ids = errBody.issues.map((i) => i.platform).join(", ");
+                  setPostingLogError(`Invalid posting log URL for ${ids}`);
+                } else {
+                  setPostingLogError(errBody.error ?? "Failed to save posting log");
+                }
               } else {
                 const successPayload = payload as SavePostingLogResponse;
                 setLogEntries(successPayload.entries ?? {});
+                setPostingLogError(null);
                 if (successPayload.sheetSyncFailed) {
                   setSheetSyncWarning(true);
                 } else {

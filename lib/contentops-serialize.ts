@@ -20,3 +20,22 @@ export function serializePostDetail(post: {
     logs: post.logs,
   };
 }
+
+export type SerializedIncomingAsset = Record<string, unknown> & { sizeBytes: string | null };
+
+export function serializeIncomingAsset(a: { sizeBytes?: bigint | null; [k: string]: unknown }): SerializedIncomingAsset {
+  return {
+    ...a,
+    sizeBytes: a.sizeBytes != null ? a.sizeBytes.toString() : null,
+  };
+}
+
+export function serializeUploadBatchDetail(batch: {
+  assets: { sizeBytes?: bigint | null; [k: string]: unknown }[];
+  [k: string]: unknown;
+}) {
+  return {
+    ...batch,
+    assets: batch.assets.map(serializeIncomingAsset),
+  };
+}
